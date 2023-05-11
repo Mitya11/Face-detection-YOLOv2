@@ -2,7 +2,6 @@ import torch
 import torch.nn.functional as F
 import matplotlib.pyplot as plt
 import numpy
-
 def iou(a,b):
     x1 = a[:,:,0:1] - a[:,:,2:3]/2
     y1 = a[:,:,1:2] - a[:,:,3:4]/2
@@ -26,49 +25,91 @@ def iou(a,b):
     return iou
 def lossF(output,target):
     loss = 0
-    for i in range(7):
-        for j in range(7):
-            target[:,i+j*7,-1] = 1 - (((1/7)*i+1/14)-target[:,i+j*7,1])**2 + (((1/7)*j+1/14)-target[:,i+j*7,0])**2
+    for h in range(target.size(dim=0)):
+        for i in range(7):
+            for j in range(7):
+                if (target[h,i*7+j,0]-target[h,i*7+j,2] / 2  <  (1/7)*j+1/14
+                        and (1/7)*j+1/14 <target[h,i*7+j,0]+target[h,i*7+j,2] / 2
+                        and target[h,i*7+j,1]-target[h,i*7+j,3] / 2  <  (1/7)*i+1/14
+                        and (1/7)*i+1/14 <target[h,i*7+j,1]+target[h,i*7+j,3] / 2) or ():
+                    target[h,i*7+j,-1] = 1
+                else:
+                    target[h, i * 7 + j, -1] = 0
 
+
+                """output[:, i*7+j, 0]= (1/7*i) + (1/7)* output[:, i*7+j, 0]
+                output[:, i*7+j, 1] = (1/7*j) + (1/7)* output[:, i*7+j, 1]
+                output[:, i*7+j, 4] = (1/7*i) + (1/7)* output[:, i*7+j, 4]
+                output[:, i*7+j, 5] = (1/7*j) + (1/7)* output[:, i*7+j, 5]
+                output[:, i*7+j, :] = torch.where(output[:, i*7+j, :] < 1,output[:, i*7+j, :],1)
+                output[:, i*7+j, :] = torch.where(output[:, i*7+j, :] > 0,output[:, i*7+j, :],0)"""
+        center = target[h,0,0].item() // (1/7) + target[h,0,1].item() // (1/7)*7
+        target[h, int(center), -1] = 1
+    o = torch.reshape(output[0,:,-1],(7,7))
+    p =torch.reshape(target[0,:,-1],(7,7))
     loss+=torch.sum(((target[:,:,0]-output[:,:,0])**2 +(target[:,:,1]-output[:,:,1])**2)*target[:,:,-1])
+
     loss+= torch.sum(((target[:,:,2]-output[:,:,2])**2 +(target[:,:,3]-output[:,:,3])**2)*target[:,:,-1])
-    loss+= torch.sum((target[:,:,-1]-output[:,:,-1])**2)
+
+    loss+= 0.2*torch.sum(((target[:,:,-1]-output[:,:,-1])**2)*target[:,:,-1])
+
+    loss+= torch.sum(((output[:,:,-1]-target[:,:,-1])**2))
     return torch.sum(loss)
 
 class YOLO(torch.nn.Module):
     def __init__(self):
         super(YOLO, self).__init__()
+
         self.conv1 = torch.nn.Conv2d(3, 16, 7,padding=(3,3))
         self.conv2 = torch.nn.Conv2d(16, 32, 5,padding=(2,2))
-        self.conv3 = torch.nn.Conv2d(32,64, 5,padding=(2,2))
-        self.conv4 = torch.nn.Conv2d(64, 100,3,padding=(1,1))
-        self.conv5 = torch.nn.Conv2d(100, 150, 3,padding=(1,1))
+        self.batchN1 = torch.nn.BatchNorm2d(32)
+        self.conv3 = torch.nn.Conv2d(32, 50, 5, padding=(2, 2))
+        self.conv4 = torch.nn.Conv2d(50,100, 5,padding=(2,2))
+        self.conv5 = torch.nn.Conv2d(100, 150, 5, padding=(2, 2))
+        self.batchN2 = torch.nn.BatchNorm2d(150)
+        self.conv6 = torch.nn.Conv2d(150, 200,3,padding=(1,1))
+        self.conv7 = torch.nn.Conv2d(200, 256, 3,padding=(1,1))
 
 
-        self.fc1 = torch.nn.Linear(7350, 490)  # 5*5 from image dimension
+        self.fc1 = torch.nn.Linear(12544, 49*6)  # 5*5 from image dimension
     def forward(self,x):
+        """l =x[0][0].cpu().detach().numpy()
+        l[:, ::32] = 0
+        l[::32, :] = 0
+        plt.imshow(l)
+        plt.colorbar()
+        plt.show()"""
+
         x = x.cuda()
-        x = self.conv1(x)
+        x = F.leaky_relu(self.conv1(x),0.1)
         x = F.max_pool2d(F.relu(x),(2,2))
 
-        x = self.conv2(x)
+
+
+        x = F.leaky_relu(self.conv2(x),0.1)
+        x = self.batchN1(x)
+
+        x = F.leaky_relu(self.conv3(x),0.1)
         x = F.max_pool2d(F.relu(x),(2,2))
 
-        x = self.conv3(x)
+        x = F.leaky_relu(self.conv4(x),0.1)
         x = F.max_pool2d(F.relu(x), (2, 2))
 
-        x = self.conv4(x)
+        x = F.leaky_relu(self.conv5(x),0.1)
+        x = self.batchN2(x)
+        x = F.leaky_relu(self.conv6(x), 0.1)
         x = F.max_pool2d(F.relu(x), (2, 2))
 
-        x = self.conv5(x)
+        x = F.leaky_relu(self.conv7(x),0.1)
         x = F.max_pool2d(F.relu(x), (2, 2))
         x = torch.flatten(x,1)
-
+        x = F.relu(x)
+        x = F.dropout(x,0.25)
         x = self.fc1(x)
-        return torch.reshape(x, (-1,49, 10))
+        return torch.reshape(x, (-1,49, 6))
 
     def train(self,epochesCount,dataset):
-        optimizer = torch.optim.Adam(self.parameters(),lr=0.001)
+        optimizer = torch.optim.Adam(self.parameters(),lr=0.0006)
         for i in range(epochesCount):
             print(i)
             self.epoch(dataset,optimizer)
