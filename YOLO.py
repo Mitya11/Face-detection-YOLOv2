@@ -71,7 +71,7 @@ class YOLO(torch.nn.Module):
         self.conv7 = torch.nn.Conv2d(200, 256, 3,padding=(1,1))
 
 
-        self.fc1 = torch.nn.Linear(12544, 49*6)  # 5*5 from image dimension
+        self.fc1 = torch.nn.Linear(12544, 49*6)  # 7*7 from grid map
     def forward(self,x):
         """l =x[0][0].cpu().detach().numpy()
         l[:, ::32] = 0
@@ -104,12 +104,12 @@ class YOLO(torch.nn.Module):
         x = F.max_pool2d(F.relu(x), (2, 2))
         x = torch.flatten(x,1)
         x = F.relu(x)
-        x = F.dropout(x,0.25)
+        #x = F.dropout(x,0.05)
         x = self.fc1(x)
         return torch.reshape(x, (-1,49, 6))
 
     def train(self,epochesCount,dataset):
-        optimizer = torch.optim.Adam(self.parameters(),lr=0.0006)
+        optimizer = torch.optim.Adam(self.parameters(),lr=0.0003)
         for i in range(epochesCount):
             print(i)
             self.epoch(dataset,optimizer)

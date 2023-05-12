@@ -14,7 +14,7 @@ def show_bounding_box(img,rect):
 
 #show_bounding_box('1--Handshaking/1_Handshaking_Handshaking_1_275.jpg',train_data['1--Handshaking/1_Handshaking_Handshaking_1_275.jpg'])
 
-img = Image.open("C://Users/mitya/Pictures/Camera Roll/WIN_20230502_11_34_27_Pro.jpg")
+img = Image.open("C://Users/mitya/Pictures/Camera Roll/WIN_20230428_20_19_14_Pro.jpg")
 #img = Image.open("C://Users/mitya/PycharmProjects/Face-detection-YOLO/ImageDataSet/0--Parade/0_Parade_Parade_0_829.jpg")
 width, height = img.size
 img = img.resize((224,224),Image.Resampling.LANCZOS)
@@ -33,9 +33,8 @@ torch.set_printoptions(sci_mode=False,precision=2)
 
 a.load_state_dict(torch.load("YOLO224x224"))
 
-#a.train(5,data)
-#torch.save(a.state_dict(),"YOLO224x224")
-
+a.train(5,data)
+torch.save(a.state_dict(),"YOLO224x224")
 
 otv = a(tens)
 print(otv.size())
