@@ -25,7 +25,7 @@ def lossF(output, target, grid,anchors):
         all_iou[:, :, i] = iou(anchor_B, target_coords[:, :, i, :])
 
     best_iou = torch.eq(all_iou, torch.unsqueeze(torch.max(all_iou, dim=2).values, dim=2).repeat(1, 1, B))
-    conf_ij = target["ij"].cuda() #* best_iou
+    conf_ij = target["ij"].cuda() * best_iou
 
     Lnoobj = (all_iou < 0.6).float() * (1-conf_ij)
 
@@ -42,7 +42,7 @@ class YOLOv2(torch.nn.Module):
     def __init__(self, grid=7):
         super(YOLOv2, self).__init__()
         self.grid = grid
-        self.anchors = torch.tensor([[0.6,0.7],[0.3,0.35],[0.1,0.15]])
+        self.anchors = torch.tensor([[0.6,0.7],[0.3,0.35],[0.06,0.08]])
         self.net1 = torch.nn.Sequential(
             torch.nn.Conv2d(3, 32, 3, padding=(1, 1)),
             torch.nn.BatchNorm2d(32),
@@ -55,6 +55,12 @@ class YOLOv2(torch.nn.Module):
             torch.nn.MaxPool2d((2, 2)),
 
             torch.nn.Conv2d(64, 128,  3, padding=(1, 1)),
+            torch.nn.BatchNorm2d(128),
+            torch.nn.LeakyReLU(0.1),
+            torch.nn.Conv2d(128, 64, 1),
+            torch.nn.BatchNorm2d(64),
+            torch.nn.LeakyReLU(0.1),
+            torch.nn.Conv2d(64, 128, 3, padding=(1, 1)),
             torch.nn.BatchNorm2d(128),
             torch.nn.LeakyReLU(0.1),
             torch.nn.MaxPool2d((2, 2)),
@@ -126,7 +132,7 @@ class YOLOv2(torch.nn.Module):
         return torch.transpose(x_res,1,2)
 
     def train(self, epochesCount, dataset):
-        optimizer = torch.optim.Adam(self.parameters(), lr=0.000002)
+        optimizer = torch.optim.Adam(self.parameters(), lr=0.000008)
         torch.autograd.set_detect_anomaly(True)
         for i in range(epochesCount):
             print("Epoch:", i + 1)

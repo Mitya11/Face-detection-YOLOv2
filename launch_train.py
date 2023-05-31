@@ -11,7 +11,7 @@ os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:256"
 
 torch.set_printoptions(sci_mode=False, precision=2)
 # Test image
-img = Image.open("C://Users/mitya/Pictures/Camera Roll/WIN_20230501_20_51_37_Pro.jpg")
+img = Image.open("C://Users/mitya/Pictures/Camera Roll/WIN_20230511_23_10_00_Pro.jpg")
 #img = Image.open("C://Users/mitya/PycharmProjects/Face-detection-YOLO/ImageDataSet/0--Parade/0_Parade_Parade_0_829.jpg")
 #img = Image.open("C://Users/mitya/PycharmProjects/Face-detection-YOLO/ImageDataSet/1--Handshaking/1_Handshaking_Handshaking_1_94.jpg")
 width, height = img.size
@@ -22,7 +22,7 @@ tens = torch.unsqueeze(tens, dim=0)
 
 # load train data from txt file
 dataset = BoundingBoxDataSet(folder="ImageDataSet/",
-                             transform=transforms.Compose([ToTensor(),RandomCrop(0.7) ,Resize((224, 224))]))
+                             transform=transforms.Compose([ToTensor(),RandomCrop(0.8),Resize((224, 224)),RandomRotate() ]))
 data = torch.utils.data.DataLoader(dataset, batch_size=48, shuffle=True)
 
 # initialize network and load weights
@@ -30,7 +30,7 @@ a = YOLOv2()
 a.load_state_dict(torch.load("YOLOv2224x224"))
 a.cuda()
 
-#a.train(12, data)
+a.train(5, data)
 torch.save(a.state_dict(), "YOLOv2224x224")
 
 # check test image

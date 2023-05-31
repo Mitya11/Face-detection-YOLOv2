@@ -10,7 +10,7 @@ class BoundingBoxDataSet(Dataset):
         dan = 0
         with open(labels_file) as file:
             while i := file.readline():
-                if dan >= 500: break
+                if dan >= 10000: break
                 count = file.readline()
                 if int(count) >= 1 and int(count) <= 1:
                     dan += 1
