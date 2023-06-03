@@ -29,7 +29,8 @@ while True:
         img_tens = transforms.ToTensor()(img)
         img_tens = torch.unsqueeze(img_tens, dim=0)
         bounding_box = a(img_tens)
-        boxes = found_best_boxes(bounding_box,7,a.anchors)
+        boxes, scores = found_best_boxes(bounding_box,7,a.anchors)
+        print(scores)
 
     output_img = show_bounding_box(img, boxes)
     output_img = output_img.resize((448, 448), Image.Resampling.LANCZOS)

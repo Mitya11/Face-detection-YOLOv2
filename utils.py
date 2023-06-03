@@ -21,6 +21,9 @@ def found_best_boxes(nn_out,grid,anchor):
             if nn_out[0,j,(i+1)*4 + i] >0.4:
                 scores.append(nn_out[0,j,(i+1)*4 + i])
                 box=nn_out[0,j,i * 4 + i:(i + 1) * 4 + i]
+                box[:2] = torch.nn.functional.sigmoid(box[:2])
+                box[2:] = torch.tanh(box[2:])
+
                 box[0] = box[0] * (1 / grid) + (1 / grid) * (j % grid)
                 box[1] = box[1] * (1 / grid) + (1 / grid) * (j // grid)
                 box[2]= anchor[i, 0] * torch.exp(box[2])
@@ -35,6 +38,6 @@ def found_best_boxes(nn_out,grid,anchor):
     predicts = torch.tensor(predicts)
     scores = torch.tensor(scores)
     if predicts.size(dim=0) == 0:
-        return []
+        return [],[]
     best_predicts = torchvision.ops.nms(predicts,scores,0.1)
-    return predicts[best_predicts].tolist()
+    return predicts[best_predicts].tolist(), scores[best_predicts].tolist()

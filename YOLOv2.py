@@ -20,12 +20,14 @@ def lossF(output, target, grid,anchors):
     all_iou = torch.autograd.Variable(torch.zeros((batch_size, grid * grid, B)).cuda())
     for i in range(B):
         anchor_B = torch.clone(output[:, :, i * 4 + i:(i + 1) * 4 + i])
+        anchor_B[:,:,:2] = torch.nn.functional.sigmoid(anchor_B[:,:,:2])
+        anchor_B[:, :, 2:] = torch.tanh(anchor_B[:, :, 2:])
         anchor_B[:,:,2] = anchors[i,0] * torch.exp(anchor_B[:, :, 2])
         anchor_B[:, :, 3] = anchors[i,1] * torch.exp(anchor_B[:, :, 3])
         all_iou[:, :, i] = iou(anchor_B, target_coords[:, :, i, :])
 
     best_iou = torch.eq(all_iou, torch.unsqueeze(torch.max(all_iou, dim=2).values, dim=2).repeat(1, 1, B))
-    conf_ij = target["ij"].cuda() * best_iou
+    conf_ij = target["ij"].cuda()# * best_iou
 
     Lnoobj = (all_iou < 0.6).float() * (1-conf_ij)
 
@@ -128,11 +130,11 @@ class YOLOv2(torch.nn.Module):
         #print(x[0,0,0,:])
         #print(x[1, 0, 0, :])
         x_res = torch.reshape(x_res, (-1, self.anchors.size(dim=0)*5, self.grid*self.grid))
-        x_res = F.tanh(x_res)
+        #x_res = F.tanh(x_res)
         return torch.transpose(x_res,1,2)
 
     def train(self, epochesCount, dataset):
-        optimizer = torch.optim.Adam(self.parameters(), lr=0.000008)
+        optimizer = torch.optim.Adam(self.parameters(), lr=0.00001)
         torch.autograd.set_detect_anomaly(True)
         for i in range(epochesCount):
             print("Epoch:", i + 1)
