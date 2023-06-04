@@ -3,13 +3,13 @@ import torch
 import numpy as np
 from PIL import Image
 from torchvision import transforms
-from utils import show_bounding_box
-from YOLO import YOLO
+from utils import show_bounding_box,found_best_boxes
+from YOLOv2 import YOLOv2
 
-a = YOLO()
+a = YOLOv2()
 a.cuda()
 torch.no_grad()
-a.load_state_dict(torch.load("YOLO224x224"))
+a.load_state_dict(torch.load("YOLOv2224x224"))
 
 cap = cv2.VideoCapture(0)
 
@@ -29,10 +29,10 @@ while True:
         img_tens = transforms.ToTensor()(img)
         img_tens = torch.unsqueeze(img_tens, dim=0)
         bounding_box = a(img_tens)
-        mor = torch.argmax(bounding_box[0, :, -1])
-        print(delay,bounding_box[0,mor,-1].item())
+        boxes, scores = found_best_boxes(bounding_box,7,a.anchors)
+        print(scores)
 
-    output_img = show_bounding_box(img, bounding_box[0, mor, :4])
+    output_img = show_bounding_box(img, boxes)
     output_img = output_img.resize((448, 448), Image.Resampling.LANCZOS)
 
     cv2.imshow('Input', np.array(output_img))
